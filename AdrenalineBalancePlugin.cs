@@ -7,18 +7,19 @@ using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
 
-namespace AdrenalineBalance
+namespace AdrenalineJunkie
 {
     [BepInPlugin(
-        "com.enki.adrenalinebalance",
-        "AdrenalineBalance",
-        "0.1.0")]
-    public class AdrenalineBalancePlugin : BaseUnityPlugin
+        "com.enki.adrenalineJunkie",
+        "AdrenalineJunkie",
+        "1.0.2")]
+    public class AdrenalineJunkiePlugin : BaseUnityPlugin
     {
         internal static ManualLogSource Log;
 
         internal static ConfigEntry<float> DecayMultiplier;
         internal static ConfigEntry<float> DelayMultiplier;
+        internal static ConfigEntry<bool> EnableDelayMultiplier;
         internal static ConfigEntry<float> GainMultiplier;
 
         private Harmony _harmony;
@@ -64,6 +65,13 @@ namespace AdrenalineBalance
                     "1 is vanilla.",
                     new AcceptableValueRange<float>(0.1f, 5f)));
 
+            EnableDelayMultiplier = Config.Bind(
+                "Adrenaline",
+                "EnableDelayMultiplier",
+                false,
+                "Enable the custom Adrenaline decay delay. " +
+                "When disabled, the vanilla delay is used.");
+                
             GainMultiplier = Config.Bind(
                 "Adrenaline",
                 "GainMultiplier",
@@ -75,12 +83,13 @@ namespace AdrenalineBalance
 
             DecayMultiplier.SettingChanged += OnSettingChanged;
             DelayMultiplier.SettingChanged += OnSettingChanged;
+            EnableDelayMultiplier.SettingChanged += OnSettingChanged;
             GainMultiplier.SettingChanged += OnSettingChanged;
 
-            _harmony = new Harmony("com.enki.adrenalinebalance");
+            _harmony = new Harmony("com.enki.adrenalinejunkie");
             _harmony.PatchAll();
 
-            Logger.LogInfo("AdrenalineBalance 0.1.0 loaded.");
+            Logger.LogInfo("AdrenalineJunkie 1.0.2 loaded.");
         }
 
         private void OnSettingChanged(object sender, EventArgs args)
@@ -152,7 +161,9 @@ namespace AdrenalineBalance
 
                 player.m_adrenalineDegenDelay = ScaleCurve(
                     original.Delay,
-                    DelayMultiplier.Value);
+                    EnableDelayMultiplier.Value
+                        ? DelayMultiplier.Value
+                        : 1f);
 
                 player.m_adrenalineGainMultiplier = ScaleCurve(
                     original.Gain,
@@ -163,15 +174,18 @@ namespace AdrenalineBalance
                 LogCurve("Gain", player.m_adrenalineGainMultiplier);
 
                 Log.LogInfo(
-                    "AdrenalineBalance applied: " +
+                    "AdrenalineJunkie applied: " +
                     "Decay=" + DecayMultiplier.Value +
-                    "x, Delay=" + DelayMultiplier.Value +
-                    "x, Gain=" + GainMultiplier.Value + "x");
+                    "x, Delay=" +
+                    (EnableDelayMultiplier.Value
+                        ? DelayMultiplier.Value + "x"
+                        : "Vanilla (disabled)") +
+                    ", Gain=" + GainMultiplier.Value + "x");
             }
             catch (Exception ex)
             {
                 Log.LogError(
-                    "Failed to apply AdrenalineBalance: " + ex);
+                    "Failed to apply AdrenalineJunkie: " + ex);
             }
         }
 
@@ -201,6 +215,9 @@ namespace AdrenalineBalance
             if (GainMultiplier != null)
                 GainMultiplier.SettingChanged -= OnSettingChanged;
 
+            if (EnableDelayMultiplier != null)
+                EnableDelayMultiplier.SettingChanged -= OnSettingChanged;
+
             if (_harmony != null)
                 _harmony.UnpatchSelf();
         }
@@ -211,7 +228,7 @@ namespace AdrenalineBalance
     {
         private static void Postfix()
         {
-            AdrenalineBalancePlugin.ApplyToLocalPlayer();
+            AdrenalineJunkiePlugin.ApplyToLocalPlayer();
         }
     }
 }
